@@ -1,2 +1,2 @@
-# bsd4-template
-This is a template repository with the BSD 4 license.
+# virtual-machine-database
+A database for virtual machines.
