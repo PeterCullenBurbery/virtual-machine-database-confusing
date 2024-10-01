@@ -108,8 +108,8 @@ CREATE TABLE virtualization_software_instance (
 CREATE TABLE virtual_machine (
     virtual_machine_id                        RAW(16) DEFAULT sys_guid() PRIMARY KEY,
     machine_name                              VARCHAR2(4000) NOT NULL,
-    short_description                         VARCHAR2(4000) NOT NULL,
-    description                               VARCHAR2(4000) NOT NULL,
+    short_description                         VARCHAR2(4000),
+    description                               VARCHAR2(4000),
 virtualization_software_instance_string   VARCHAR2(4000) NOT NULL, -- String for virtualization software instance
     virtualization_software_instance_id       RAW(16) NOT NULL,
     operating_system_instance_string          VARCHAR2(4000) NOT NULL,
