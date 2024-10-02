@@ -130,7 +130,7 @@ virtualization_software_instance_string   VARCHAR2(4000) NOT NULL, -- String for
 
     nested_virtualization_enabled             NUMBER(1) DEFAULT 0 NOT NULL CHECK ( nested_virtualization_enabled IN ( 0, 1 ) ),
     iso_image_file                            VARCHAR2(4000),
-    network_drives_enabled_and_used           NUMBER(1) DEFAULT 0 NOT NULL CHECK ( network_drives_enabled_and_used IN ( 0, 1 ) ),
+    network_drives_enabled_and_used           NUMBER(1) DEFAULT 0 CHECK ( network_drives_enabled_and_used IN ( 0, 1 ) ),
     hard_disk_file                            VARCHAR2(4000),
     shared_clipboard_is_working_and_turned_on NUMBER(1) DEFAULT 1 NOT NULL CHECK ( shared_clipboard_is_working_and_turned_on IN ( 0, 1) ),
 
@@ -160,8 +160,8 @@ COMMENT ON COLUMN virtual_machine.ram IS
 COMMENT ON COLUMN virtual_machine.disk_size IS
     'Disk size is in bytes';
 
-COMMENT ON COLUMN virtual_machine.total_processors IS
-    'Total processors calculated as number_of_processors * cores_per_processor';
+COMMENT ON COLUMN virtual_machine.total_processor_cores IS
+    'Total processor cores calculated as number_of_processors * cores_per_processor';
 
 COMMENT ON COLUMN virtual_machine.number_of_processors IS
     'Allows up to 1000 processors';
@@ -169,223 +169,86 @@ COMMENT ON COLUMN virtual_machine.number_of_processors IS
 COMMENT ON COLUMN virtual_machine.cores_per_processor IS
     'Allows up to 1000 cores per processor';
 
--- Triggers to update date_updated
+-- Function to escape all characters by prefixing with a backslash
+create or replace FUNCTION escape_regex_special_chars(input_string VARCHAR2) RETURN VARCHAR2 IS
+    escaped_string VARCHAR2(4000);
+BEGIN
+    escaped_string := input_string;
+    -- Escape special characters with double backslashes
+    escaped_string := REPLACE(escaped_string, '\', '\\');
+    escaped_string := REPLACE(escaped_string, '.', '\.');
+    escaped_string := REPLACE(escaped_string, '(', '\(');
+    escaped_string := REPLACE(escaped_string, ')', '\)');
+    escaped_string := REPLACE(escaped_string, '[', '
+\[');
+    escaped_string := REPLACE(escaped_string, ']', '\]');
+    escaped_string := REPLACE(escaped_string, '{', '\{');
+    escaped_string := REPLACE(escaped_string, '}', '\}');
+    escaped_string := REPLACE(escaped_string, '*', '\*');
+    escaped_string := REPLACE(escaped_string, '+', '\+');
+    escaped_string := REPLACE(escaped_string, '?', '\?');
+    escaped_string := REPLACE(escaped_string, '^', '\^');
+    escaped_string := REPLACE(escaped_string, '$', '\$');
+    escaped_string := REPLACE(escaped_string, '|', '\|');
+    escaped_string := REPLACE(escaped_string, '/', '\/');
+
+    RETURN escaped_string;
+END;
+/
+
+-- Triggers to update date_updated for each relevant table
 
 -- Trigger to update date_updated for virtualization_software
-CREATE OR REPLACE TRIGGER trg_set_date_updated_virt_software BEFORE
-    UPDATE ON virtualization_software
-    FOR EACH ROW
+CREATE OR REPLACE TRIGGER trg_set_date_updated_virt_software 
+BEFORE UPDATE ON virtualization_software
+FOR EACH ROW
 BEGIN
-    :new.date_updated := systimestamp;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
 -- Trigger to update date_updated for operating_system
-CREATE OR REPLACE TRIGGER trg_set_date_updated_os BEFORE
-    UPDATE ON operating_system
-    FOR EACH ROW
+CREATE OR REPLACE TRIGGER trg_set_date_updated_os 
+BEFORE UPDATE ON operating_system
+FOR EACH ROW
 BEGIN
-    :new.date_updated := systimestamp;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
 -- Trigger to update date_updated for operating_system_category
-CREATE OR REPLACE TRIGGER trg_set_date_updated_os_category BEFORE
-    UPDATE ON operating_system_category
-    FOR EACH ROW
+CREATE OR REPLACE TRIGGER trg_set_date_updated_os_category 
+BEFORE UPDATE ON operating_system_category
+FOR EACH ROW
 BEGIN
-    :new.date_updated := systimestamp;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
 -- Trigger to update date_updated for operating_system_category_to_operating_system
-CREATE OR REPLACE TRIGGER trg_set_date_updated_os_cat_to_os BEFORE
-    UPDATE ON operating_system_category_to_operating_system
-    FOR EACH ROW
+CREATE OR REPLACE TRIGGER trg_set_date_updated_os_cat_to_os 
+BEFORE UPDATE ON operating_system_category_to_operating_system
+FOR EACH ROW
 BEGIN
-    :new.date_updated := systimestamp;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
 -- Trigger to update date_updated for operating_system_instance
-CREATE OR REPLACE TRIGGER trg_set_date_updated_os_instance BEFORE
-    UPDATE ON operating_system_instance
-    FOR EACH ROW
+CREATE OR REPLACE TRIGGER trg_set_date_updated_os_instance 
+BEFORE UPDATE ON operating_system_instance
+FOR EACH ROW
 BEGIN
-    :new.date_updated := systimestamp;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
 -- Trigger to update date_updated for virtual_machine
-CREATE OR REPLACE TRIGGER trg_set_date_updated_vm BEFORE
-    UPDATE ON virtual_machine
-    FOR EACH ROW
-BEGIN
-    :new.date_updated := systimestamp;
-END;
-/
-
--- Trigger to update operating_system_instance_id from string in virtual_machine
-CREATE OR REPLACE TRIGGER trg_set_operating_system_instance_id_from_string BEFORE
-    INSERT OR UPDATE ON virtual_machine
-    FOR EACH ROW
-BEGIN
-    IF :new.operating_system_instance_string IS NOT NULL THEN
-        SELECT
-            operating_system_instance_id
-        INTO :new.operating_system_instance_id
-        FROM
-            operating_system_instance
-        WHERE
-            REGEXP_LIKE ( operating_system_instance_string,
-                          '^'
-                          || :new.operating_system_instance_string
-                          || '$',
-                          'i' );
-
-    END IF;
-END;
-/
-
-
-
--- Trigger to update full_clone_parent_id from string in virtual_machine
-CREATE OR REPLACE TRIGGER trg_set_full_clone_parent_id_from_string BEFORE
-    INSERT OR UPDATE ON virtual_machine
-    FOR EACH ROW
-BEGIN
-    IF :new.full_clone_parent_string IS NOT NULL THEN
-        SELECT
-            virtual_machine_id
-        INTO :new.full_clone_parent_id
-        FROM
-            virtual_machine
-        WHERE
-            REGEXP_LIKE ( machine_name,
-                          '^'
-                          || :new.full_clone_parent_string
-                          || '$',
-                          'i' );
-
-    END IF;
-END;
-/
-
--- Trigger to update linked_clone_parent_id from string in virtual_machine
-CREATE OR REPLACE TRIGGER trg_set_linked_clone_parent_id_from_string BEFORE
-    INSERT OR UPDATE ON virtual_machine
-    FOR EACH ROW
-BEGIN
-    IF :new.linked_clone_parent_string IS NOT NULL THEN
-        SELECT
-            virtual_machine_id
-        INTO :new.linked_clone_parent_id
-        FROM
-            virtual_machine
-        WHERE
-            REGEXP_LIKE ( machine_name,
-                          '^'
-                          || :new.linked_clone_parent_string
-                          || '$',
-                          'i' );
-
-    END IF;
-END;
-/
-
--- Trigger to prevent both full_clone and linked_clone being set (either string or ID)
-CREATE OR REPLACE TRIGGER trg_no_full_and_linked_clones BEFORE
-    INSERT OR UPDATE ON virtual_machine
-    FOR EACH ROW
-BEGIN
--- Prevent both full_clone and linked_clone being set (strings)
-    IF (
-        :new.full_clone_parent_string IS NOT NULL
-        AND :new.linked_clone_parent_string IS NOT NULL
-    ) THEN
-        raise_application_error(-20001, 'Both full_clone_parent_string and linked_clone_parent_string cannot be set.');
-    END IF;
-
--- Prevent both full_clone and linked_clone being set (IDs)
-    IF (
-        :new.full_clone_parent_id IS NOT NULL
-        AND :new.linked_clone_parent_id IS NOT NULL
-    ) THEN
-        raise_application_error(-20002, 'Both full_clone_parent_id and linked_clone_parent_id cannot be set.');
-    END IF;
-
--- Prevent full_clone_parent_string and linked_clone_parent_id being set
-    IF (
-        :new.full_clone_parent_string IS NOT NULL
-        AND :new.linked_clone_parent_id IS NOT NULL
-    ) THEN
-        raise_application_error(-20003, 'full_clone_parent_string and linked_clone_parent_id cannot both be set.');
-    END IF;
-
--- Prevent full_clone_parent_id and linked_clone_parent_string being set
-    IF (
-        :new.full_clone_parent_id IS NOT NULL
-        AND :new.linked_clone_parent_string IS NOT NULL
-    ) THEN
-        raise_application_error(-20004, 'full_clone_parent_id and linked_clone_parent_string cannot both be set.');
-    END IF;
-
-END;
-/
-
--- Trigger to set operating_system_category_id based on operating_system_category_string
-CREATE OR REPLACE TRIGGER trg_set_os_category_id_from_string
-BEFORE INSERT OR UPDATE ON operating_system
+CREATE OR REPLACE TRIGGER trg_set_date_updated_vm 
+BEFORE UPDATE ON virtual_machine
 FOR EACH ROW
 BEGIN
-    IF :NEW.operating_system_category_string IS NOT NULL THEN
-        SELECT operating_system_category_id
-        INTO :NEW.operating_system_category_id
-        FROM operating_system_category
-        WHERE REGEXP_LIKE(operating_system_category, '^' || :NEW.operating_system_category_string || '$', 'i');
-    END IF;
-END;
-/
-
--- Trigger to set operating_system_id in operating_system_instance based on operating_system_string
-CREATE OR REPLACE TRIGGER trg_set_os_id_from_string_in_instance
-BEFORE INSERT OR UPDATE ON operating_system_instance
-FOR EACH ROW
-BEGIN
-    IF :NEW.operating_system_string IS NOT NULL THEN
-        SELECT operating_system_id
-        INTO :NEW.operating_system_id
-        FROM operating_system
-        WHERE REGEXP_LIKE(operating_system, '^' || :NEW.operating_system_string || '$', 'i');
-    END IF;
-END;
-/
-
--- Trigger to update virtualization_software_id based on virtualization_software_string in virtualization_software_instance
-CREATE OR REPLACE TRIGGER trg_set_virtualization_software_id_from_string
-BEFORE INSERT OR UPDATE ON virtualization_software_instance
-FOR EACH ROW
-BEGIN
-    IF :NEW.virtualization_software_string IS NOT NULL THEN
-        SELECT virtualization_software_id
-        INTO :NEW.virtualization_software_id
-        FROM virtualization_software
-        WHERE REGEXP_LIKE(virtualization_software, '^' || :NEW.virtualization_software_string || '$', 'i');
-    END IF;
-END;
-/
-
-
-CREATE OR REPLACE TRIGGER trg_set_virtualization_software_instance_id_from_string
-BEFORE INSERT OR UPDATE ON virtual_machine
-FOR EACH ROW
-BEGIN
-    IF :NEW.virtualization_software_instance_string IS NOT NULL THEN
-        SELECT virtualization_software_instance_id
-        INTO :NEW.virtualization_software_instance_id
-        FROM virtualization_software_instance
-        WHERE REGEXP_LIKE(version, '^' || :NEW.virtualization_software_instance_string || '$', 'i');
-    END IF;
+    :NEW.date_updated := systimestamp;
 END;
 /
 
@@ -396,5 +259,132 @@ FOR EACH ROW
 BEGIN
     -- Set the date_updated to the current timestamp when a row is updated
     :NEW.date_updated := SYSTIMESTAMP;
+END;
+/
+
+-- Triggers to update IDs from string values, using escaped strings for safe matching
+
+-- Trigger to set operating_system_instance_id from string in virtual_machine
+CREATE OR REPLACE TRIGGER trg_set_operating_system_instance_id_from_string 
+BEFORE INSERT OR UPDATE ON virtual_machine
+FOR EACH ROW
+BEGIN
+    IF :NEW.operating_system_instance_string IS NOT NULL THEN
+        SELECT operating_system_instance_id
+        INTO :NEW.operating_system_instance_id
+        FROM operating_system_instance
+        WHERE REGEXP_LIKE(operating_system_instance_string, '^' || escape_regex_special_chars(:NEW.operating_system_instance_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set full_clone_parent_id from string in virtual_machine
+CREATE OR REPLACE TRIGGER trg_set_full_clone_parent_id_from_string 
+BEFORE INSERT OR UPDATE ON virtual_machine
+FOR EACH ROW
+BEGIN
+    IF :NEW.full_clone_parent_string IS NOT NULL THEN
+        SELECT virtual_machine_id
+        INTO :NEW.full_clone_parent_id
+        FROM virtual_machine
+        WHERE REGEXP_LIKE(machine_name, '^' || escape_regex_special_chars(:NEW.full_clone_parent_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set linked_clone_parent_id from string in virtual_machine
+CREATE OR REPLACE TRIGGER trg_set_linked_clone_parent_id_from_string 
+BEFORE INSERT OR UPDATE ON virtual_machine
+FOR EACH ROW
+BEGIN
+    IF :NEW.linked_clone_parent_string IS NOT NULL THEN
+        SELECT virtual_machine_id
+        INTO :NEW.linked_clone_parent_id
+        FROM virtual_machine
+        WHERE REGEXP_LIKE(machine_name, '^' || escape_regex_special_chars(:NEW.linked_clone_parent_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set operating_system_category_id from string in operating_system
+CREATE OR REPLACE TRIGGER trg_set_os_category_id_from_string 
+BEFORE INSERT OR UPDATE ON operating_system
+FOR EACH ROW
+BEGIN
+    IF :NEW.operating_system_category_string IS NOT NULL THEN
+        SELECT operating_system_category_id
+        INTO :NEW.operating_system_category_id
+        FROM operating_system_category
+        WHERE REGEXP_LIKE(operating_system_category, '^' || escape_regex_special_chars(:NEW.operating_system_category_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set operating_system_id in operating_system_instance from string
+CREATE OR REPLACE TRIGGER trg_set_os_id_from_string_in_instance 
+BEFORE INSERT OR UPDATE ON operating_system_instance
+FOR EACH ROW
+BEGIN
+    IF :NEW.operating_system_string IS NOT NULL THEN
+        SELECT operating_system_id
+        INTO :NEW.operating_system_id
+        FROM operating_system
+        WHERE REGEXP_LIKE(operating_system, '^' || escape_regex_special_chars(:NEW.operating_system_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set virtualization_software_id from string in virtualization_software_instance
+CREATE OR REPLACE TRIGGER trg_set_virtualization_software_id_from_string 
+BEFORE INSERT OR UPDATE ON virtualization_software_instance
+FOR EACH ROW
+BEGIN
+    IF :NEW.virtualization_software_string IS NOT NULL THEN
+        SELECT virtualization_software_id
+        INTO :NEW.virtualization_software_id
+        FROM virtualization_software
+        WHERE REGEXP_LIKE(virtualization_software, '^' || escape_regex_special_chars(:NEW.virtualization_software_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to set virtualization_software_instance_id from string in virtual_machine
+CREATE OR REPLACE TRIGGER trg_set_virtualization_software_instance_id_from_string 
+BEFORE INSERT OR UPDATE ON virtual_machine
+FOR EACH ROW
+BEGIN
+    IF :NEW.virtualization_software_instance_string IS NOT NULL THEN
+        SELECT virtualization_software_instance_id
+        INTO :NEW.virtualization_software_instance_id
+        FROM virtualization_software_instance
+        WHERE REGEXP_LIKE(version, '^' || escape_regex_special_chars(:NEW.virtualization_software_instance_string) || '$', 'i');
+    END IF;
+END;
+/
+
+-- Trigger to prevent both full_clone and linked_clone being set (either string or ID)
+CREATE OR REPLACE TRIGGER trg_no_full_and_linked_clones 
+BEFORE INSERT OR UPDATE ON virtual_machine
+FOR EACH ROW
+BEGIN
+    -- Prevent both full_clone and linked_clone being set (strings)
+    IF (:NEW.full_clone_parent_string IS NOT NULL AND :NEW.linked_clone_parent_string IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Both full_clone_parent_string and linked_clone_parent_string cannot be set.');
+    END IF;
+
+    -- Prevent both full_clone and linked_clone being set (IDs)
+    IF (:NEW.full_clone_parent_id IS NOT NULL AND :NEW.linked_clone_parent_id IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Both full_clone_parent_id and linked_clone_parent_id cannot be set.');
+    END IF;
+
+    -- Prevent full_clone_parent_string and linked_clone_parent_id being set
+    IF (:NEW.full_clone_parent_string IS NOT NULL AND :NEW.linked_clone_parent_id IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20003, 'full_clone_parent_string and linked_clone_parent_id cannot both be set.');
+    END IF;
+
+    -- Prevent full_clone_parent_id and linked_clone_parent_string being set
+    IF (:NEW.full_clone_parent_id IS NOT NULL AND :NEW.linked_clone_parent_string IS NOT NULL) THEN
+        RAISE_APPLICATION_ERROR(-20004, 'full_clone_parent_id and linked_clone_parent_string cannot both be set.');
+    END IF;
 END;
 /
