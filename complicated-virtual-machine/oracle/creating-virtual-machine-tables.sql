@@ -71,7 +71,8 @@ CREATE TABLE operating_system_instance (
     operating_system_instance_string VARCHAR2(2001) GENERATED ALWAYS AS (operating_system_string || ' ' || version) VIRTUAL,
     
     operating_system_string VARCHAR2(1000) NOT NULL,  -- String for operating system    
-    version VARCHAR2(1000) NOT NULL,  -- Version of the operating system
+    version VARCHAR2(1000) NOT NULL,  -- Version of the operating SYSTEM,
+    iso_image_file                            VARCHAR2(4000),
 operating_system_id RAW(16),  -- Foreign key reference to operating_system
     -- Foreign key constraint
     CONSTRAINT fk_operating_system FOREIGN KEY (operating_system_id)
@@ -129,7 +130,6 @@ virtualization_software_instance_string   VARCHAR2(4000) NOT NULL, -- String for
     disk_size                                 NUMBER(20, 0) NOT NULL,  -- Disk size is in bytes
 
     nested_virtualization_enabled             NUMBER(1) DEFAULT 0 NOT NULL CHECK ( nested_virtualization_enabled IN ( 0, 1 ) ),
-    iso_image_file                            VARCHAR2(4000),
     network_drives_enabled_and_used           NUMBER(1) DEFAULT 0 CHECK ( network_drives_enabled_and_used IN ( 0, 1 ) ),
     hard_disk_file                            VARCHAR2(4000),
     shared_clipboard_is_working_and_turned_on NUMBER(1) DEFAULT 1 NOT NULL CHECK ( shared_clipboard_is_working_and_turned_on IN ( 0, 1) ),
